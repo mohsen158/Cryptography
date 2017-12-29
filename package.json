@@ -11,8 +11,12 @@
     "babel-preset-es2015": "^6.3.13",
     "babel-preset-react": "^6.3.13",
     "babel-register": "^6.3.13",
+    "material-ui": "^0.20.0",
     "react": "^15.3.2",
-    "react-dom": "^15.3.2"
+    "react-dom": "^15.3.2",
+    "react-material-design": "^0.3.6",
+    "semantic-ui-css": "^2.2.12",
+    "semantic-ui-react": "^0.77.1"
   },
   "devDependencies": {
     "electron": "^1.4.3"

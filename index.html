@@ -1,15 +1,39 @@
 <!DOCTYPE html>
 <html>
-  <head>
+<head>
     <title>electron es6 react boilerplate</title>
-  </head>
+    <link rel="stylesheet" href="css/semantic.min.css"></link>
+    <link href="http://netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css" rel="stylesheet">
+    <style>
+        @keyframes back-to-docs {
+            0% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(0.5em);
+            }
+            100% {
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
 
-  <body>
-    <div id="app"></div>
-    <script>
-      // install babel hooks in the renderer process
-      require('babel-register');
-      require('./scripts/main');
-    </script>
-  </body>
+<body>
+<!--<div style="margin: 50%; animation: back-to-docs 1.5s ease-in-out-->
+<!--infinite; z-index: 6;" id="app"></div>-->
+<div id="app" style="  margin-top: 200px;animation: back-to-docs 1.5s ease-in-out
+
+  infinite; z-index: 6;" class="ui text  container   grid">
+
+</div>
+
+
+
+<script>
+    // install babel hooks in the renderer process
+    require('babel-register');
+    require('./scripts/main');
+</script>
+</body>
 </html>
