@@ -9,7 +9,7 @@ app.on('window-all-closed', () => {
 });
 
 app.on('ready', () => {
-  mainWindow = new BrowserWindow({width: 600, height: 600});
+  mainWindow = new BrowserWindow({width: 1000, height: 850});
   mainWindow.loadURL('file://' + __dirname + '/index.html');
   mainWindow.on('closed', () => {
     mainWindow = null;
