@@ -1,9 +1,9 @@
 var app = require('express')();
 var server = require('http').Server(app);
 var io = require('socket.io')(server);
-
+var forge = require('node-forge');//for cryptoghraphy
 var fs = require("fs");
-
+var rsa = forge.pki.rsa;
 server.listen(8891);
 console.log("Server Start");
 
@@ -31,10 +31,17 @@ function write(value) {
 
 }
 
+var keypair = rsa.generateKeyPair({bits: 2048, e: 0x10001});
+// var md = forge.md.sha1.create();
+// md.update('sign this', 'utf8');
+// var signature = keypair.privateKey.sign(md);
+// var verified = keypair.publicKey.decrypt( signature);
+// var visitorsData = {};
 
+var en= keypair.publicKey.encrypt('dfsdfsdf')
 
-
-var visitorsData = {};
+var decrypted = keypair.privateKey.decrypt(en);
+console.log(decrypted)
 var userinfo = {};
 
 io.on('connection', function (socket) {

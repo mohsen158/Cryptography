@@ -4,7 +4,11 @@ import {render} from 'react-dom';
 //import '../css/semantic.min.css';
 import RaisedButton from 'material-ui/RaisedButton';
 
-
+var redis = require('redis');
+var client = redis.createClient()
+client.on('connect', function () {
+    console.log('connected');
+});
 
 
 import {Button, Form, Segment, Input, TextArea, Message, Header, Grid, Image, Modal} from 'semantic-ui-react'
@@ -53,7 +57,7 @@ class App extends React.Component {
     // }
 
     login() {
-        socket.emit('login','sdfsafsdf')
+        socket.emit('login', 'sdfsafsdf')
         console.log("sfsdfd")
         this.setState({disablelogin: true})
     }
@@ -92,7 +96,7 @@ class App extends React.Component {
                             >
                                 <Grid.Column>
                                     <Header as='h2' color='teal' textAlign='center'>
-                                        Log-in to your account
+                                        Log-in and send value
                                     </Header>
                                     <Form >
                                         <Segment stacked>
@@ -110,6 +114,14 @@ class App extends React.Component {
                                                 placeholder='Password'
                                                 type='password'
                                             />
+                                            <Form.Input
+                                                disabled={this.state.disablelogin}
+                                                fluid
+                                                icon='lock'
+                                                iconPosition='left'
+                                                placeholder='value'
+                                                type='text'
+                                            />
 
                                             <Button onClick={this.login} color='teal' fluid size='large'>Login</Button>
                                         </Segment>
@@ -121,17 +133,31 @@ class App extends React.Component {
                     </Grid.Column>
                     <Grid.Column width={8}>
                         <Header as='h2' color='teal' textAlign='center'>
-                            Log-in to your account
+                            Registeration
                         </Header>
 
-                        <Form>
-                            <Segment stacked>
-                            <TextArea label={{icon: 'asterisk'}}
+                        <Form >
+                            <Segment style={{marginTop: 50}} stacked>
+                                <Form.Input
+                                    fluid
+                                    icon='user'
+                                    iconPosition='left'
+                                    placeholder='E-mail address'
+                                />
+                                <Form.Input
+                                    disabled={this.state.disablelogin}
+                                    fluid
+                                    icon='lock'
+                                    iconPosition='left'
+                                    placeholder='Password'
+                                    type='password'
+                                />
+                                {/*<TextArea label={{icon: 'asterisk'}}*/}
 
-                                      placeholder='Tell us more' style={{minHeight: 80}}/>
+                                {/*placeholder='Tell us more' style={{minHeight: 80}}/>*/}
 
 
-                                <Button onClick={this.login} color='teal' style={{marginTop:20}} fluid size='large'>Send</Button>
+                                <Button onClick={this.login} color='teal' style={{marginTop: 20}} fluid size='large'>Register</Button>
 
                             </Segment>
 
@@ -142,22 +168,13 @@ class App extends React.Component {
 
                 <Grid.Row>
                     <Grid.Column  >
-                        <Header as='h2' color='teal' textAlign='center'>
-                            Log-in to your account
+                        <Header as='h2' color='green' textAlign='center'>
+                            Response
                         </Header>
+                        <Segment   raised>
 
-                        <Form>
-                            <Segment stacked>
-                            <TextArea label={{icon: 'asterisk'}}
-
-                                      placeholder='Tell us more' style={{minHeight: 80}}/>
-
-
-                                <Button onClick={this.login} color='teal' style={{marginTop:20}} fluid size='large'>Send</Button>
-
-                            </Segment>
-
-                        </Form>
+                            respons is hear
+                        </Segment>
                     </Grid.Column>
                 </Grid.Row>
             </Grid>
