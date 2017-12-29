@@ -4,7 +4,14 @@ import {render} from 'react-dom';
 //import '../css/semantic.min.css';
 import RaisedButton from 'material-ui/RaisedButton';
 
+
+
+
 import {Button, Form, Segment, Input, TextArea, Message, Header, Grid, Image, Modal} from 'semantic-ui-react'
+
+import openSocket from 'socket.io-client';
+const socket = openSocket('http://localhost:8891');
+
 // function App() {
 //     return (
 //
@@ -26,6 +33,7 @@ import {Button, Form, Segment, Input, TextArea, Message, Header, Grid, Image, Mo
 
 class App extends React.Component {
     constructor(props) {
+
         super(props);
         this.state = {
             isToggleOn: true,
@@ -45,6 +53,7 @@ class App extends React.Component {
     // }
 
     login() {
+        socket.emit('login','sdfsafsdf')
         console.log("sfsdfd")
         this.setState({disablelogin: true})
     }
