@@ -1,17 +1,29 @@
 import React from 'react';
 import {render} from 'react-dom';
+var forge = require('node-forge');
 // import '../semantic/dist/semantic.min.css';
 //import '../css/semantic.min.css';
 import RaisedButton from 'material-ui/RaisedButton';
 import nl2br from 'react-newline-to-break';
 var redis = require('redis');
+var rsa = forge.pki.rsa;
+var pki = forge.pki;
 var redisClient = redis.createClient()
+var skey = forge.random.getBytesSync(16);
+var iv = forge.random.getBytesSync(8);
+var server_public_key = '';
+
+var md = forge.md.sha256.create();
+md.update('The quick brown fox jumps over the lazy dog');
+console.log(md.digest().toHex());
+
+
 redisClient.on('connect', function () {
     console.log('connected');
 });
 
 
-import {Button, Form, Segment, Input, TextArea, Message,Icon, Header, Grid, Image, Modal} from 'semantic-ui-react'
+import {Button, Form, Segment, Input, TextArea, Message, Icon, Header, Grid, Image, Modal} from 'semantic-ui-react'
 
 import openSocket from 'socket.io-client';
 const socket = openSocket('http://localhost:8891');
@@ -38,16 +50,42 @@ const socket = openSocket('http://localhost:8891');
 class App extends React.Component {
     constructor(props) {
 
-        // setInterval(() => {
-        //     this.setState({ modalOpen: this.state.modalOpen ? false : true })
-        // }, 2000)
+        socket.emit('register-handshake', 'hi ');
+        socket.on('getSKey', function (msg) {
+
+            var nonce = msg.nonce
+            server_public_key = pki.publicKeyFromPem(msg.key);
+
+            socket.emit('setSKey', server_public_key.encrypt(JSON.stringify({
+                'skey': skey,
+                'iv': iv,
+                'nonce': nonce
+            })))
+        })
+
+        setInterval(() => {
+
+            if (!redisClient.ready) {
+                // this.setState({ modalOpen: this.state.modalOpen ? false : true })
+                this.showError('Redis client does not ready!!!!!!')
+            }
+            else if (!socket.connected) {
+                this.showError('Server doesnot connected!!!!!!')
+            }
+            else {
+                this.hideError()
+            }
+
+        }, 100)
         super(props);
         this.state = {
             isToggleOn: true,
             modalOpen: false,
             disablelogin: false,
-            error:'',
-            response: 'start app'
+            error: '',
+            response: 'start app',
+            userRegister: '',
+            userPasswordRegister: ''
         };
 
         // This binding is necessary to make `this` work in the callback
@@ -56,6 +94,7 @@ class App extends React.Component {
         this.setRespons = this.setRespons.bind(this);
         this.showError = this.showError.bind(this);
         this.hideError = this.hideError.bind(this);
+        this.register = this.register.bind(this);
 
     }
 
@@ -79,19 +118,100 @@ class App extends React.Component {
     }
 
     register() {
+        var that = this;
+
+        var keypair = rsa.generateKeyPair({bits: 1024, e: 0x10001});
+        var pem_private = pki.privateKeyToPem(keypair.privateKey);
+        var pem_public = pki.publicKeyToPem(keypair.publicKey);
+        md.update(that.state.userPasswordRegister);
+        var hashpass = md.digest().toHex();
+
+
+        var cipher = forge.rc2.createEncryptionCipher(skey);
+        cipher.start(iv);
+        cipher.update(forge.util.createBuffer(JSON.stringify({
+            'username': that.state.userRegister,
+            'pass': hashpass,
+            'publickey': pem_public,
+
+        })));
+        cipher.finish();
+        var encrypted = cipher.output;
+// outputs encrypted hex
+        console.log(encrypted.toHex());
+
+        socket.emit('register', encrypted.toHex())
+        //console.log(encrypted)
+
+
+        // outputs encrypted hex
+        // console.log(encrypted.toHex());
+        var encrypted2 = forge.util.hexToBytes(encrypted.toHex());
+        var cipher = forge.rc2.createDecryptionCipher(skey);
+        cipher.start(iv);
+        cipher.update(forge.util.createBuffer(encrypted2));
+        cipher.finish();
+        console.log(cipher)
+// // outputs decrypted hex
+//         console.log(cipher);
+
+        // console.log(JSON.stringify(publicKey.encrypt({
+        //     'username': that.state.userRegister,
+        //     'pass': hashpass,
+        //     'publickey': pem_public,
+        //
+        // })))
+
+
+//         socket.emit('register',)
+//         socket.on('getPublickey', function (msg) {
+//             var nonce = msg.nonce
+//             var publicKey = pki.publicKeyFromPem(msg.key);
+//
+//
+//             redisClient.hset(that.state.userRegister, 'pass', hashpass)
+//             var keypair = rsa.generateKeyPair({bits: 1024, e: 0x10001});
+//             var pem_private = pki.privateKeyToPem(keypair.privateKey);
+//             var pem_public = pki.publicKeyToPem(keypair.publicKey);
+//
+//
+// // outputs encrypted hex
+//             console.log(encrypted.toHex());
+//             var cipher = forge.rc2.createDecryptionCipher(skey);
+//             cipher.start(iv);
+//             cipher.update(encrypted);
+//             cipher.finish();
+// // outputs decrypted hex
+//             console.log(cipher);
+//
+//
+//             socket.emit('publicKeySent', publicKey.encrypt(JSON.stringify({
+//                 'skey': skey,
+//                 'nonce': nonce
+//             })))
+        // console.log(JSON.stringify(publicKey.encrypt({
+        //     'username': that.state.userRegister,
+        //     'pass': hashpass,
+        //     'publickey': pem_public,
+        //     'nonce': nonce
+        // })))
+
+        // })
+
+
+        //console.log(this.state)
+    }
+
+    showError(error) {
+        this.setState({modalOpen: false})
+        this.setState({error: error})
+        this.setState({modalOpen: true})
 
     }
-    showError(error)
-    {
-        this.setState({ modalOpen: false })
-        this.setState({error:error})
-        this.setState({modalOpen:true})
 
+    hideError() {
+        this.setState({modalOpen: false})
     }
-  hideError()
-  {
-      this.setState({ modalOpen: false })
-  }
 
     login() {
         this.setRespons('sdfsdf')
@@ -200,6 +320,8 @@ class App extends React.Component {
                                         icon='user'
                                         iconPosition='left'
                                         placeholder='Username'
+                                        onChange={(text) => this.setState({userRegister: text.target.value})}
+
                                     />
                                     <Form.Input
                                         disabled={this.state.disablelogin}
@@ -207,6 +329,8 @@ class App extends React.Component {
                                         icon='lock'
                                         iconPosition='left'
                                         placeholder='Password'
+
+                                        onChange={(text) => this.setState({userPasswordRegister: text.target.value})}
                                         type='password'
                                     />
                                     {/*<TextArea label={{icon: 'asterisk'}}*/}
@@ -214,7 +338,7 @@ class App extends React.Component {
                                     {/*placeholder='Tell us more' style={{minHeight: 80}}/>*/}
 
 
-                                    <Button onClick={this.login} color='teal' style={{marginTop: 20}} fluid
+                                    <Button onClick={this.register} color='teal' style={{marginTop: 20}} fluid
                                             size='large'>Register</Button>
 
                                 </Segment>
