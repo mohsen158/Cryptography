@@ -59,6 +59,7 @@ class App extends React.Component {
         this.showError = this.showError.bind(this);
         this.hideError = this.hideError.bind(this);
         this.register = this.register.bind(this);
+        this.auth = this.auth.bind(this);
 
 
         this.state = {
@@ -73,7 +74,8 @@ class App extends React.Component {
             pemPrivateKeyClient: '',
             loginUsername: '',
             message: '',
-            loginPass: ''
+            loginPass: '',
+            userAuth: ''
         };
 
         socket.emit('register-handshake', 'hi ');
@@ -139,6 +141,40 @@ class App extends React.Component {
     clearResponse() {
 
         this.setState({response: 'response in empty'})
+    }
+
+    auth() {
+        var that = this;
+        redisClient.hgetall(this.state.userAuth, function (err, obj) {
+            if (obj == null) {
+                that.setRespons('this user doesnot have any publickey')
+            } else {
+                var pem_privateKey = obj.pemPrivateKeyClient;
+                var privateKey = pki.privateKeyFromPem(pem_privateKey)
+                var md = forge.md.sha1.create();
+
+
+                var md = forge.md.sha1.create();
+                md.update(that.state.userAuth, 'utf8');
+                var signature = privateKey.sign(md);
+                // var verified = publicKey.verify(md.digest().bytes(), signature);
+
+                var data = {
+                    'username': that.state.userAuth,
+                    'sign': signature
+                }
+
+
+                var cipher = forge.rc2.createEncryptionCipher(skey);
+                cipher.start(iv);
+                cipher.update(forge.util.createBuffer(JSON.stringify(data)));
+                cipher.finish();
+                var encrypted = cipher.output;
+                socket.emit('auth', encrypted)
+
+
+            }
+        })
     }
 
     setRespons(res) {
@@ -279,7 +315,7 @@ class App extends React.Component {
             'username': that.state.loginUsername,
             'pass': hashpass,
             'message': that.state.message,
-            'messagehash':messagehash
+            'messagehash': messagehash
         }
 
         console.log(skey)
@@ -368,7 +404,7 @@ class App extends React.Component {
                 </Modal>
                 <Grid celled='internally'>
                     <Grid.Row>
-                        <Grid.Column width={8}>
+                        <Grid.Column width={6}>
                             <div className='login-form'>
 
                                 <Grid
@@ -401,7 +437,7 @@ class App extends React.Component {
                                                 <Form.Input
                                                     disabled={this.state.disablelogin}
                                                     fluid
-                                                    icon='lock'
+                                                    icon='flag'
                                                     iconPosition='left'
                                                     placeholder='value'
                                                     type='text'
@@ -417,7 +453,8 @@ class App extends React.Component {
                                 </Grid>
                             </div>
                         </Grid.Column>
-                        <Grid.Column width={8}>
+
+                        <Grid.Column width={5}>
                             <Header as='h2' color='teal' textAlign='center'>
                                 Registeration
                             </Header>
@@ -454,7 +491,33 @@ class App extends React.Component {
 
                             </Form>
                         </Grid.Column>
+                        <Grid.Column width={5}>
+                            <Header as='h2' color='teal' textAlign='center'>
+                                Auth without pass
+                            </Header>
 
+                            <Form >
+                                <Segment style={{marginTop: 20}} stacked>
+                                    <Form.Input
+                                        fluid
+                                        icon='user'
+                                        iconPosition='left'
+                                        placeholder='Username'
+                                        onChange={(text) => this.setState({userAuth: text.target.value})}
+
+                                    />
+                                    {/*<TextArea label={{icon: 'asterisk'}}*/}
+
+                                    {/*placeholder='Tell us more' style={{minHeight: 80}}/>*/}
+
+
+                                    <Button onClick={this.auth} color='teal' style={{marginTop: 20}} fluid
+                                            size='large'>Login</Button>
+
+                                </Segment>
+
+                            </Form>
+                        </Grid.Column>
                     </Grid.Row>
 
                     <Grid.Row>
@@ -468,7 +531,7 @@ class App extends React.Component {
                             {/**/}
                             {/*</div>*/}
                             {/*</Segment>*/}
-                            <Message style={{overflow: 'scroll' , height:'200px' }}  info scrolling >
+                            <Message style={{overflow: 'scroll', height: '200px'}} info scrolling>
 
                                 {nl2br(this.state.response)}
                             </Message>

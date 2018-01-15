@@ -95,9 +95,36 @@ io.on('connection', function (socket) {
 
     })
 
+    socket.on('auth', (data) => {
+
+        var cipher = forge.rc2.createDecryptionCipher(skey);
+        cipher.start(iv);
+        cipher.update(forge.util.createBuffer(data));
+        cipher.finish();
+        //  that.setState({response: that.state.response + '\n' + cipher.output.data})
+        //     var res = cipher.output.data;
+        var logindata = JSON.parse(cipher.output.data)
+
+        if (userPublicKey[logindata.username]) {
+            var pem_public = userPublicKey[logindata.username]
+            var publickey = pki.publicKeyFromPem(pem_public)
+
+            var md = forge.md.sha1.create();
+            md.update(logindata.username, 'utf8');
+            var ver = publickey.verify(md.digest().getBytes(), logindata.sign);
+            if (ver) {
+                sendResponse(socket, skey, iv, 'Auth without pass is correct')
+            }
+            else {
+                sendResponse(socket, skey, iv, 'Auth without pass is incorrect')
+            }
+        } else {
+            sendResponse(socket, skey, iv, 'Auth without pass is incorrect')
+        }
+
+    })
     socket.on('login', (data) => {
-        console.log(skey)
-        console.log(iv)
+
         var cipher = forge.rc2.createDecryptionCipher(skey);
         cipher.start(iv);
         cipher.update(forge.util.createBuffer(data));
