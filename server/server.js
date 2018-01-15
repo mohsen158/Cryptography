@@ -7,8 +7,18 @@ var redis = require('redis');
 var redisClient = redis.createClient()
 var rsa = forge.pki.rsa;
 var pki = forge.pki;
+var UTIL = forge.util;
 server.listen(8891);
 console.log("Server Start");
+
+var userPublicKey = {};
+var userPass = {};
+
+
+redisClient.flushdb(function (err, succeeded) {
+    console.log(succeeded); // will be true if successfull
+});
+
 
 function write(value) {
     /*
@@ -37,6 +47,8 @@ var pem_private = pki.privateKeyToPem(keypair.privateKey);
 var pem_public = pki.publicKeyToPem(keypair.publicKey);
 redisClient.set('serverPemPrivate', pem_private, redis.print)
 redisClient.set('serverpemPublic', pem_public, redis.print)
+
+
 // console.log(pem)
 // var md = forge.md.sha1.create();
 // md.update('sign this', 'utf8');
@@ -48,6 +60,16 @@ redisClient.set('serverpemPublic', pem_public, redis.print)
 // var decrypted = keypair.privateKey.decrypt(en);
 // console.log(decrypted)
 var userinfo = {};
+
+function sendResponse(socket, skey, iv, response) {
+
+    var cipher = forge.rc2.createEncryptionCipher(skey);
+    cipher.start(iv);
+    cipher.update(forge.util.createBuffer(response));
+    cipher.finish();
+    var encrypted = cipher.output;
+    socket.emit('response', encrypted)
+}
 
 io.on('connection', function (socket) {
     var skey = '';
@@ -73,18 +95,75 @@ io.on('connection', function (socket) {
 
     })
 
+    socket.on('login', (data) => {
+        console.log(skey)
+        console.log(iv)
+        var cipher = forge.rc2.createDecryptionCipher(skey);
+        cipher.start(iv);
+        cipher.update(forge.util.createBuffer(data));
+        cipher.finish();
+        //  that.setState({response: that.state.response + '\n' + cipher.output.data})
+        //     var res = cipher.output.data;
+        console.log(cipher.output.data)
+        var logindata = JSON.parse(cipher.output.data)
+        if (userPublicKey[logindata.username]) {
+            if (userPass[logindata.username] == logindata.pass) {
+                sendResponse(socket, skey, iv, 'this user is login')
 
+                var md = forge.md.sha256.create();
+                md.update(logindata.message);
+                var hashmessage = md.digest();
+                var hashhex = hashmessage.toHex()
+                if (hashhex != logindata.messagehash) {
+                    sendResponse(socket, skey, iv, 'this request does not have integrity')
+                } else {
+                    var base64 = UTIL.encode64(hashmessage.data)
+                    sendResponse(socket, skey, iv, base64)
+                    console.log('base:', base64)
+                }
+
+            }
+            else {
+                sendResponse(socket, skey, iv, 'pass is not correct')
+            }
+        }
+        else {
+            sendResponse(socket, skey, iv, 'this user doesnot exist')
+        }
+//         encrypted = forge.util.hexToBytes(data);
+// // // outputs decrypted hex
+// //       console.log(cipher.output.data);
+//         console.log(cipher.output)
+//         var cipher = forge.rc2.createDecryptionCipher(skey);
+//         cipher.start(iv);
+//         cipher.update(forge.util.createBuffer(encrypted));
+//         cipher.finish();
+        // logindata = JSON.parse(cipher.output.data);
+        //  console.log(logindata)
+    })
     socket.on('register', (data) => {
-console.log(data)
+        // console.log(data)
 
         encrypted = forge.util.hexToBytes(data);
-      var cipher = forge.rc2.createDecryptionCipher(skey);
-       cipher.start(iv);
-    cipher.update(forge.util.createBuffer(encrypted));
-       cipher.finish();
+        var cipher = forge.rc2.createDecryptionCipher(skey);
+        cipher.start(iv);
+        cipher.update(forge.util.createBuffer(encrypted));
+        cipher.finish();
 // // outputs decrypted hex
-      console.log(cipher.output.data);
+//       console.log(cipher.output.data);
+        userdata = JSON.parse(cipher.output.data);
+        // console.log(data.username)
+        if (userPublicKey[userdata.username]) {
+            console.log('this user already registered')//TODO send response
 
+            sendResponse(socket, skey, iv, 'this user already registered')
+        } else {
+
+            userPublicKey[userdata.username] = userdata.publickey
+            userPass[userdata.username] = userdata.pass
+            //TODO send response
+            sendResponse(socket, skey, iv, 'register is ok')
+        }
 
     })
     socket.on('register-handshake', (data) => {

@@ -7,6 +7,7 @@ import RaisedButton from 'material-ui/RaisedButton';
 import nl2br from 'react-newline-to-break';
 var redis = require('redis');
 var rsa = forge.pki.rsa;
+var UTIL = forge.util;
 var pki = forge.pki;
 var redisClient = redis.createClient()
 var skey = forge.random.getBytesSync(16);
@@ -48,7 +49,32 @@ const socket = openSocket('http://localhost:8891');
 
 
 class App extends React.Component {
+
+
     constructor(props) {
+        super(props);
+        this.login = this.login.bind(this);
+        this.clearResponse = this.clearResponse.bind(this);
+        this.setRespons = this.setRespons.bind(this);
+        this.showError = this.showError.bind(this);
+        this.hideError = this.hideError.bind(this);
+        this.register = this.register.bind(this);
+
+
+        this.state = {
+            isToggleOn: true,
+            modalOpen: false,
+            disablelogin: false,
+            error: '',
+            response: 'start app',
+            userRegister: '',
+            userPasswordRegister: '',
+            pemPublicKeyClient: '',
+            pemPrivateKeyClient: '',
+            loginUsername: '',
+            message: '',
+            loginPass: ''
+        };
 
         socket.emit('register-handshake', 'hi ');
         socket.on('getSKey', function (msg) {
@@ -61,6 +87,25 @@ class App extends React.Component {
                 'iv': iv,
                 'nonce': nonce
             })))
+        })
+
+        var that = this;
+        socket.on('response', function (data) {
+            var cipher = forge.rc2.createDecryptionCipher(skey);
+            cipher.start(iv);
+            cipher.update(forge.util.createBuffer(data));
+            cipher.finish();
+            that.setState({response: that.state.response + '\n' + cipher.output.data})
+            var res = cipher.output.data;
+
+            if (res == 'register is ok') {
+                var md = forge.md.sha256.create();
+                md.update(that.state.userPasswordRegister);
+                var hashpass = md.digest().toHex();
+                console.log('hashpassregister:', hashpass)
+                redisClient.hmset(that.state.userRegister, 'pass', hashpass, 'pemPublicKeyClient', that.state.pemPublicKeyClient, 'pemPrivateKeyClient', that.state.pemPrivateKeyClient)
+            }
+            console.log(cipher.output.data)
         })
 
         setInterval(() => {
@@ -77,24 +122,9 @@ class App extends React.Component {
             }
 
         }, 100)
-        super(props);
-        this.state = {
-            isToggleOn: true,
-            modalOpen: false,
-            disablelogin: false,
-            error: '',
-            response: 'start app',
-            userRegister: '',
-            userPasswordRegister: ''
-        };
+
 
         // This binding is necessary to make `this` work in the callback
-        this.login = this.login.bind(this);
-        this.clearResponse = this.clearResponse.bind(this);
-        this.setRespons = this.setRespons.bind(this);
-        this.showError = this.showError.bind(this);
-        this.hideError = this.hideError.bind(this);
-        this.register = this.register.bind(this);
 
     }
 
@@ -118,11 +148,16 @@ class App extends React.Component {
     }
 
     register() {
+
+
         var that = this;
 
         var keypair = rsa.generateKeyPair({bits: 1024, e: 0x10001});
         var pem_private = pki.privateKeyToPem(keypair.privateKey);
         var pem_public = pki.publicKeyToPem(keypair.publicKey);
+        that.setState({pemPublicKeyClient: pem_public})
+        that.setState({pemPrivateKeyClient: pem_private})
+        var md = forge.md.sha256.create();
         md.update(that.state.userPasswordRegister);
         var hashpass = md.digest().toHex();
 
@@ -146,12 +181,12 @@ class App extends React.Component {
 
         // outputs encrypted hex
         // console.log(encrypted.toHex());
-        var encrypted2 = forge.util.hexToBytes(encrypted.toHex());
-        var cipher = forge.rc2.createDecryptionCipher(skey);
-        cipher.start(iv);
-        cipher.update(forge.util.createBuffer(encrypted2));
-        cipher.finish();
-        console.log(cipher)
+        // var encrypted2 = forge.util.hexToBytes(encrypted.toHex());
+        // var cipher = forge.rc2.createDecryptionCipher(skey);
+        // cipher.start(iv);
+        // cipher.update(forge.util.createBuffer(encrypted2));
+        // cipher.finish();
+        // console.log(cipher)
 // // outputs decrypted hex
 //         console.log(cipher);
 
@@ -214,14 +249,85 @@ class App extends React.Component {
     }
 
     login() {
-        this.setRespons('sdfsdf')
-        redisClient.hset('usernaem', 'publicKey', 131232)
-        socket.emit('login', 'sdfsafsdf')
-        console.log("sfsdfd")
-        this.setState({disablelogin: true})
+        var that = this;
+        var md = forge.md.sha256.create();
+        md.update(that.state.loginPass);
+        var hashpass = md.digest().toHex();
+
+        // redisClient.hgetall(this.state.loginUsername, function (err, obj) {
+        // if (obj == null) {
+        //     that.setRespons('this user not exist!!!!!')
+        // } else if (obj.pass != hashpass) {
+        //     that.setRespons('pasword is not correct!!!!!')
+        // }
+        // else {
+        //     var md = forge.md.sha256.create();
+        //     md.update(that.state.message);
+        //     var hashmessage = md.digest().toHex();
+        //     var pem_privateKey = obj.pemPrivateKeyClient;
+        //     var privateKey = pki.privateKeyFromPem(pem_privateKey)
+        //     var pem_publicKey = obj.pemPrivateKeyClient;
+        //     var publicKey = pki.privateKeyFromPem(pem_publicKey)
+        //     //var sign=privateKey.sign(md)
+        //     var encoded = pki.rsa.encrypt(hashmessage, publicKey, true) ;
+        //     var decoded = pki.rsa.decrypt( encoded , privateKey, false, false);
+        //
+        var md = forge.md.sha256.create();
+        md.update(that.state.message);
+        var messagehash = md.digest().toHex();
+        var data = {
+            'username': that.state.loginUsername,
+            'pass': hashpass,
+            'message': that.state.message,
+            'messagehash':messagehash
+        }
+
+        console.log(skey)
+        console.log(iv)
+        var cipher = forge.rc2.createEncryptionCipher(skey);
+        cipher.start(iv);
+        cipher.update(forge.util.createBuffer(JSON.stringify(data)));
+        cipher.finish();
+        var encrypted = cipher.output;
+        socket.emit('login', encrypted)
+
+
+        // var cipher = forge.rc2.createEncryptionCipher(skey);
+        // cipher.start(iv);
+        // cipher.update(forge.util.createBuffer(data));
+        // cipher.finish();
+        // var encrypted = cipher.output;
+        // socket.emit('login', encrypted.toHex())
+        //
+
+
+        //
+        //
+        // var sillyString = decoded.slice(64);
+        // console.log('hash',hashmessage)
+        //
+        // console.log( sillyString)
+
+        //     }
+        // });
+        //  console.log(redisClient.hget(this.state.loginUsername, 'pemPrivateKeyClient').)
+        // md.update(that.state.message);
+        // var hashmessage = md.digest().toHex();
+        //
+
+        // var pem_private = redisClient.hget(this.state.loginUsername,'pemPrivateKeyClient')
+        // var pem_public = pki.privateKeyFromPem();
+        //
+        // this.setRespons('sdfsdf')
+        // redisClient.hset('usernaem', 'publicKey', 131232)
+        // socket.emit('login', 'sdfsafsdf')
+        // console.log("sfsdfd")
+        // this.setState({disablelogin: true})
     }
 
     render() {
+
+
         return (
             // <Button inverted color='teal' onClick={this.handleClick}>
             //     {this.state.isToggleOn ? 'ON' : 'OFF'}
@@ -244,7 +350,7 @@ class App extends React.Component {
             // </div>
             <div>
                 <Modal
-                    trigger={<Button onClick={this.handleOpen}>Show Modal</Button>}
+
                     open={this.state.modalOpen}
 
                     closeOnEscape={false}
@@ -281,6 +387,7 @@ class App extends React.Component {
                                                     icon='user'
                                                     iconPosition='left'
                                                     placeholder='Username'
+                                                    onChange={(text) => this.setState({loginUsername: text.target.value})}
                                                 />
                                                 <Form.Input
                                                     disabled={this.state.disablelogin}
@@ -289,6 +396,7 @@ class App extends React.Component {
                                                     iconPosition='left'
                                                     placeholder='Password'
                                                     type='password'
+                                                    onChange={(text) => this.setState({loginPass: text.target.value})}
                                                 />
                                                 <Form.Input
                                                     disabled={this.state.disablelogin}
@@ -297,6 +405,7 @@ class App extends React.Component {
                                                     iconPosition='left'
                                                     placeholder='value'
                                                     type='text'
+                                                    onChange={(text) => this.setState({message: text.target.value})}
                                                 />
 
                                                 <Button onClick={this.login} color='teal' fluid
@@ -359,7 +468,7 @@ class App extends React.Component {
                             {/**/}
                             {/*</div>*/}
                             {/*</Segment>*/}
-                            <Message info scrolling>
+                            <Message style={{overflow: 'scroll' , height:'200px' }}  info scrolling >
 
                                 {nl2br(this.state.response)}
                             </Message>
