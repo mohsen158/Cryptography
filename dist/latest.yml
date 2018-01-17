@@ -1,0 +1,9 @@
+version: 0.1.0
+files:
+  - url: electron-es6-react-setup-0.1.0.exe
+    sha512: JlHB/Bv5UAp2rqLL80IdF0IVmZqLbiBke60zeYM6ycRtWcwItt8Ks/HtyVTNxPIAoTyelxwmNgoBksQFCM8Lsg==
+    size: 46304538
+path: electron-es6-react-setup-0.1.0.exe
+sha512: JlHB/Bv5UAp2rqLL80IdF0IVmZqLbiBke60zeYM6ycRtWcwItt8Ks/HtyVTNxPIAoTyelxwmNgoBksQFCM8Lsg==
+sha2: 5a4225df6ceb66d219a966a6f9d2eb6f551ff86d4c81bdb6ab9907725c9d42bb
+releaseDate: '2018-01-16T07:19:43.525Z'
